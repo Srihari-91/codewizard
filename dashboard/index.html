@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CodeWizard AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #7c6af7;
+    --accent2: #f7c06a;
+    --red: #f76a6a;
+    --orange: #f7a06a;
+    --yellow: #f7c06a;
+    --green: #6af7a0;
+    --text: #e8e8f0;
+    --muted: #7070a0;
+    --font: 'Syne', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background grid ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,247,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,247,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .layout { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    padding: 0 24px 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text { font-size: 15px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-sub { font-size: 10px; color: var(--muted); font-family: var(--mono); letter-spacing: 1px; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 24px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: all .2s;
+    border-left: 3px solid transparent;
+    letter-spacing: .3px;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(124,106,247,.06); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(124,106,247,.08); }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── Main ── */
+  .main {
+    margin-left: 240px;
+    flex: 1;
+    padding: 32px;
+    min-height: 100vh;
+  }
+
+  .page { display: none; animation: fadein .3s ease; }
+  .page.active { display: block; }
+  @keyframes fadein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  /* ── Header ── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+  .page-title { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+  .page-title span { color: var(--accent); }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+  .badge-accent { background: rgba(124,106,247,.15); color: var(--accent); }
+  .badge-green { background: rgba(106,247,160,.12); color: var(--green); }
+  .badge-red { background: rgba(247,106,106,.12); color: var(--red); }
+  .badge-yellow { background: rgba(247,192,106,.12); color: var(--yellow); }
+  .badge-orange { background: rgba(247,160,106,.12); color: var(--orange); }
+
+  /* ── Stats grid ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 80px; height: 80px;
+    border-radius: 0 16px 0 80px;
+    opacity: .06;
+  }
+  .stat-card.purple::after { background: var(--accent); }
+  .stat-card.green::after { background: var(--green); }
+  .stat-card.red::after { background: var(--red); }
+  .stat-card.yellow::after { background: var(--yellow); }
+
+  .stat-label { font-size: 11px; color: var(--muted); letter-spacing: .8px; text-transform: uppercase; margin-bottom: 8px; font-family: var(--mono); }
+  .stat-value { font-size: 36px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+  .stat-value.purple { color: var(--accent); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ── Severity bars ── */
+  .severity-grid {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .sev-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .sev-icon { font-size: 22px; }
+  .sev-label { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .sev-count { font-size: 24px; font-weight: 800; }
+
+  /* ── Table ── */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .table-title { font-size: 14px; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    padding: 12px 24px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    letter-spacing: .8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    font-weight: 500;
+  }
+  td {
+    padding: 14px 24px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(42,42,58,.5);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(124,106,247,.03); }
+
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 11px;
+    padding: 3px 10px; border-radius: 20px;
+  }
+  .pill-completed { background: rgba(106,247,160,.12); color: var(--green); }
+  .pill-processing { background: rgba(124,106,247,.15); color: var(--accent); }
+  .pill-queued { background: rgba(247,192,106,.12); color: var(--yellow); }
+  .pill-failed { background: rgba(247,106,106,.12); color: var(--red); }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Empty state ── */
+  .empty-state {
+    padding: 60px 24px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state p { font-size: 14px; }
+
+  /* ── Refresh btn ── */
+  .btn {
+    background: rgba(124,106,247,.15);
+    color: var(--accent);
+    border: 1px solid rgba(124,106,247,.3);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .3px;
+  }
+  .btn:hover { background: rgba(124,106,247,.25); }
+  .btn:active { transform: scale(.97); }
+
+  /* ── Config page ── */
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .config-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .config-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 16px; color: var(--accent); letter-spacing: .3px; }
+  .config-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .config-row:last-child { border-bottom: none; }
+  .config-key { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .config-val { font-size: 13px; font-weight: 600; font-family: var(--mono); color: var(--text); }
+
+  /* ── Pipeline diagram ── */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    padding: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 24px;
+  }
+  .pipeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 80px;
+    flex-shrink: 0;
+  }
+  .pipeline-node {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    position: relative;
+  }
+  .pipeline-node.active { border-color: var(--accent); background: rgba(124,106,247,.1); }
+  .pipeline-label { font-size: 10px; color: var(--muted); text-align: center; font-family: var(--mono); max-width: 70px; }
+  .pipeline-arrow {
+    width: 24px;
+    height: 2px;
+    background: var(--border);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .pipeline-arrow::after {
+    content: '▶';
+    position: absolute;
+    right: -6px;
+    top: -7px;
+    font-size: 8px;
+    color: var(--border);
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-family: var(--mono);
+    z-index: 9999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  #toast.show { transform: none; opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">🧙</div>
+      <div>
+        <div class="logo-text">CodeWizard</div>
+        <div class="logo-sub">AI · v1.0.0</div>
+      </div>
+    </div>
+
+    <nav>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('prs')">
+        <span class="nav-icon">🔀</span> Pull Requests
+      </div>
+      <div class="nav-item" onclick="showPage('pipeline')">
+        <span class="nav-icon">⚙️</span> Pipeline
+      </div>
+      <div class="nav-item" onclick="showPage('config')">
+        <span class="nav-icon">🔧</span> Configuration
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="status-dot"></span>System Online
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ── Dashboard ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Overview <span>Dashboard</span></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Real-time CodeWizard AI metrics</div>
+        </div>
+        <button class="btn" onclick="loadAll()">↻ Refresh</button>
+      </div>
+
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card purple">
+          <div class="stat-label">PRs Analyzed</div>
+          <div class="stat-value purple" id="stat-prs">—</div>
+          <div class="stat-sub">Total processed</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">Issues Found</div>
+          <div class="stat-value green" id="stat-issues">—</div>
+          <div class="stat-sub">Across all PRs</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-label">Fixes Applied</div>
+          <div class="stat-value yellow" id="stat-fixes">—</div>
+          <div class="stat-sub">Auto-patched</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">Fix Rate</div>
+          <div class="stat-value red" id="stat-rate">—</div>
+          <div class="stat-sub">Issues resolved</div>
+        </div>
+      </div>
+
+      <div class="severity-grid" id="severity-grid">
+        <div class="sev-card">
+          <div class="sev-icon">🚨</div>
+          <div>
+            <div class="sev-label">CRITICAL</div>
+            <div class="sev-count" id="sev-critical" style="color:var(--red)">—</div>
+          </div>
+        </div>
+        <div class="sev-card">
+          <div class="sev-icon">⚠️</div>
+          <div>
+            <div class="sev-label">HIGH</div>
+            <div class="sev-count" id="sev-high" style="color:var(--orange)">—</div>
+          </div>
+        </div>
+        <div class="sev-card">
+          <div class="sev-icon">📌</div>
+          <div>
+            <div class="sev-label">MEDIUM</div>
+            <div class="sev-count" id="sev-medium" style="color:var(--yellow)">—</div>
+          </div>
+        </div>
+        <div class="sev-card">
+          <div class="sev-icon">💡</div>
+          <div>
+            <div class="sev-label">LOW</div>
+            <div class="sev-count" id="sev-low" style="color:var(--green)">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Recent Activity</div>
+          <span class="badge badge-accent" id="recent-count">Loading…</span>
+        </div>
+        <div id="recent-table-body">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Pull Requests ── -->
+    <div class="page" id="page-prs">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Pull <span>Requests</span></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">All analyzed PRs</div>
+        </div>
+        <button class="btn" onclick="loadPRs()">↻ Refresh</button>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">PR Analysis History</div>
+          <span class="badge badge-accent" id="pr-count">—</span>
+        </div>
+        <div id="pr-table-body">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Pipeline ── -->
+    <div class="page" id="page-pipeline">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Analysis <span>Pipeline</span></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">12-stage automated review flow</div>
+        </div>
+      </div>
+
+      <div class="pipeline" id="pipeline-viz"></div>
+
+      <div class="config-grid">
+        <div class="config-card">
+          <h3>⚡ Pipeline Stages</h3>
+          <div class="config-row"><span class="config-key">1. Parse PR diff</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">2. Filter files</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">3. Update Neo4j graph</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">4. Graph impact score</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">5. Apply filtering</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">6. Risk scoring</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">7. Diff-aware slicing</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">8. Semgrep analysis</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">9. LLM fix generation</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">10. Docker sandbox</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">11. Post PR comment</span><span class="badge badge-green">active</span></div>
+          <div class="config-row"><span class="config-key">12. Create fix branch</span><span class="badge badge-green">active</span></div>
+        </div>
+        <div class="config-card">
+          <h3>🤖 LLM Strategy</h3>
+          <div class="config-row"><span class="config-key">Primary Model</span><span class="config-val">Gemini 1.5 Flash</span></div>
+          <div class="config-row"><span class="config-key">Fallback Model</span><span class="config-val">Groq / LLaMA 3</span></div>
+          <div class="config-row"><span class="config-key">Min Confidence</span><span class="config-val">75%</span></div>
+          <div class="config-row"><span class="config-key">Skip Risky Fixes</span><span class="config-val">Yes</span></div>
+          <div class="config-row"><span class="config-key">Max Fixes / PR</span><span class="config-val">2</span></div>
+          <div class="config-row"><span class="config-key">Sandbox Timeout</span><span class="config-val">30s</span></div>
+          <div class="config-row"><span class="config-key">Retry Attempts</span><span class="config-val">1</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Config ── -->
+    <div class="page" id="page-config">
+      <div class="page-header">
+        <div>
+          <div class="page-title">System <span>Configuration</span></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Runtime settings and limits</div>
+        </div>
+      </div>
+      <div class="config-grid">
+        <div class="config-card">
+          <h3>📋 Analysis Limits</h3>
+          <div class="config-row"><span class="config-key">Max PRs / Hour</span><span class="config-val">5</span></div>
+          <div class="config-row"><span class="config-key">Max Issues / PR</span><span class="config-val">3</span></div>
+          <div class="config-row"><span class="config-key">Max Files Changed</span><span class="config-val">20</span></div>
+          <div class="config-row"><span class="config-key">Max Lines Analyzed</span><span class="config-val">1500–2000</span></div>
+          <div class="config-row"><span class="config-key">Allowed Extensions</span><span class="config-val">.py</span></div>
+          <div class="config-row"><span class="config-key">Triggers</span><span class="config-val">opened · synchronize</span></div>
+        </div>
+        <div class="config-card">
+          <h3>🗄️ Infrastructure</h3>
+          <div class="config-row"><span class="config-key">Backend</span><span class="config-val">FastAPI + Uvicorn</span></div>
+          <div class="config-row"><span class="config-key">Task Queue</span><span class="config-val">Redis + RQ</span></div>
+          <div class="config-row"><span class="config-key">Graph DB</span><span class="config-val">Neo4j 5 (Docker)</span></div>
+          <div class="config-row"><span class="config-key">Vector DB</span><span class="config-val">Qdrant</span></div>
+          <div class="config-row"><span class="config-key">Metadata DB</span><span class="config-val">SQLite</span></div>
+          <div class="config-row"><span class="config-key">Sandbox</span><span class="config-val">Docker isolated</span></div>
+        </div>
+        <div class="config-card">
+          <h3>🔒 Severity Tiers</h3>
+          <div class="config-row"><span class="config-key" style="color:var(--red)">CRITICAL</span><span class="config-val" style="font-size:11px">SQL injection, RCE, hardcoded secrets, auth bypass</span></div>
+          <div class="config-row"><span class="config-key" style="color:var(--orange)">HIGH</span><span class="config-val" style="font-size:11px">Unhandled exceptions, insecure deps, data leaks</span></div>
+          <div class="config-row"><span class="config-key" style="color:var(--yellow)">MEDIUM</span><span class="config-val" style="font-size:11px">Missing validation, deprecated APIs, rate limits</span></div>
+          <div class="config-row"><span class="config-key" style="color:var(--green)">LOW</span><span class="config-val" style="font-size:11px">Code style, unused imports, missing docstrings</span></div>
+        </div>
+        <div class="config-card">
+          <h3>📊 Risk Score Formula</h3>
+          <div style="background:var(--surface2);border-radius:8px;padding:16px;font-family:var(--mono);font-size:12px;line-height:1.8;color:var(--muted)">
+            Risk Score =<br>
+            &nbsp;&nbsp;<span style="color:var(--accent)">Change Size</span><br>
+            &nbsp;&nbsp;+ <span style="color:var(--green)">Critical Path</span><br>
+            &nbsp;&nbsp;+ <span style="color:var(--red)">Security Sensitivity</span><br>
+            &nbsp;&nbsp;+ <span style="color:var(--yellow)">Graph Impact Score</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '/api';
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (id === 'dashboard') loadAll();
+  if (id === 'prs') loadPRs();
+  if (id === 'pipeline') renderPipeline();
+}
+
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(r.statusText);
+  return r.json();
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Dashboard ──────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadSummary(), loadRecent()]);
+  toast('Dashboard refreshed');
+}
+
+async function loadSummary() {
+  try {
+    const d = await fetchJSON(`${API}/analytics/summary`);
+    document.getElementById('stat-prs').textContent = d.total_prs_analyzed ?? 0;
+    document.getElementById('stat-issues').textContent = d.total_issues_found ?? 0;
+    document.getElementById('stat-fixes').textContent = d.total_fixes_applied ?? 0;
+    const rate = d.total_issues_found
+      ? Math.round((d.total_fixes_applied / d.total_issues_found) * 100)
+      : 0;
+    document.getElementById('stat-rate').textContent = rate + '%';
+    document.getElementById('sev-critical').textContent = d.by_severity?.CRITICAL ?? 0;
+    document.getElementById('sev-high').textContent = d.by_severity?.HIGH ?? 0;
+    document.getElementById('sev-medium').textContent = d.by_severity?.MEDIUM ?? 0;
+    document.getElementById('sev-low').textContent = d.by_severity?.LOW ?? 0;
+  } catch(e) {
+    console.warn('summary fetch failed', e);
+  }
+}
+
+async function loadRecent() {
+  const container = document.getElementById('recent-table-body');
+  try {
+    const d = await fetchJSON(`${API}/analytics/recent`);
+    const rows = d.recent ?? [];
+    document.getElementById('recent-count').textContent = rows.length + ' entries';
+    if (!rows.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>No PRs analyzed yet. Connect your GitHub webhook to get started.</p></div>`;
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>REPO</th><th>PR #</th><th>TITLE</th>
+          <th>STATUS</th><th>ISSUES</th><th>FIXES</th><th>DATE</th>
+        </tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td class="mono">${r.repo}</td>
+            <td class="mono">#${r.pr_number}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.title || '—'}</td>
+            <td>${statusPill(r.status)}</td>
+            <td class="mono">${r.issues_found}</td>
+            <td class="mono" style="color:var(--green)">${r.fixes_applied}</td>
+            <td class="mono" style="color:var(--muted);font-size:11px">${fmtDate(r.created_at)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not connect to backend. Is it running?</p></div>`;
+  }
+}
+
+// ── PRs ────────────────────────────────────────────────────────
+async function loadPRs() {
+  const container = document.getElementById('pr-table-body');
+  try {
+    const d = await fetchJSON(`${API}/prs/`);
+    const rows = d.prs ?? [];
+    document.getElementById('pr-count').textContent = rows.length + ' PRs';
+    if (!rows.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No pull requests analyzed yet.</p></div>`;
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>REPO</th><th>PR #</th><th>TITLE</th>
+          <th>STATUS</th><th>ISSUES</th><th>FIXES</th><th>ANALYZED</th>
+        </tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td class="mono">${r.repo}</td>
+            <td class="mono">#${r.pr_number}</td>
+            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.title || '—'}</td>
+            <td>${statusPill(r.status)}</td>
+            <td>${r.issues_found > 0 ? `<span class="badge badge-red">${r.issues_found}</span>` : '<span style="color:var(--muted)">0</span>'}</td>
+            <td>${r.fixes_applied > 0 ? `<span class="badge badge-green">${r.fixes_applied}</span>` : '<span style="color:var(--muted)">0</span>'}</td>
+            <td class="mono" style="color:var(--muted);font-size:11px">${fmtDate(r.created_at)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Backend unavailable.</p></div>`;
+  }
+}
+
+// ── Pipeline ───────────────────────────────────────────────────
+function renderPipeline() {
+  const steps = [
+    {icon:'📂', label:'Parse Diff'},
+    {icon:'🔍', label:'Filter Files'},
+    {icon:'🕸️', label:'Neo4j Graph'},
+    {icon:'📊', label:'Impact Score'},
+    {icon:'🏆', label:'Risk Rank'},
+    {icon:'✂️', label:'Diff Slice'},
+    {icon:'🔬', label:'Semgrep'},
+    {icon:'🤖', label:'LLM Fix'},
+    {icon:'🧪', label:'Sandbox'},
+    {icon:'💬', label:'PR Comment'},
+    {icon:'🌿', label:'Fix Branch'},
+  ];
+  const container = document.getElementById('pipeline-viz');
+  container.innerHTML = steps.map((s, i) => `
+    <div class="pipeline-step">
+      <div class="pipeline-node active">${s.icon}</div>
+      <div class="pipeline-label">${s.label}</div>
+    </div>
+    ${i < steps.length - 1 ? '<div class="pipeline-arrow"></div>' : ''}
+  `).join('');
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function statusPill(s) {
+  const map = {
+    completed: 'pill-completed', processing: 'pill-processing',
+    queued: 'pill-queued', failed: 'pill-failed', pending: 'pill-queued'
+  };
+  return `<span class="status-pill ${map[s] || 'pill-queued'}">${s}</span>`;
+}
+
+function fmtDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  return isNaN(d) ? str : d.toLocaleDateString('en-US', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+// ── Init ───────────────────────────────────────────────────────
+loadAll();
+renderPipeline();
+</script>
+</body>
+</html>

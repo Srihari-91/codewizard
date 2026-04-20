@@ -1,0 +1,159 @@
+version: "3.9"
+
+services:
+  # ─── Backend API ───────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: codewizard-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - NEO4J_URI=bolt://neo4j:7687
+      - SQLITE_DB_PATH=/data/codewizard.db
+    volumes:
+      - sqlite_data:/data
+      - ./backend:/app
+    depends_on:
+      - redis
+      - qdrant
+      - neo4j
+    networks:
+      - codewizard-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── RQ Worker ─────────────────────────────────────────────────
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: codewizard-worker
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - NEO4J_URI=bolt://neo4j:7687
+      - SQLITE_DB_PATH=/data/codewizard.db
+    volumes:
+      - sqlite_data:/data
+      - ./worker:/app/worker
+      - ./worker/jobs:/app/jobs
+      - ./analyzer:/app/analyzer
+      - ./llm:/app/llm
+      - ./db:/app/db
+      - ./sandbox:/app/sandbox
+      - ./config.py:/app/config.py
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+      - neo4j
+      - qdrant
+    networks:
+      - codewizard-net
+    restart: unless-stopped
+
+  # ─── Dashboard ─────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: codewizard-dashboard
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - codewizard-net
+    restart: unless-stopped
+
+  # ─── Redis ─────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: codewizard-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - codewizard-net
+    restart: unless-stopped
+
+  # ─── Qdrant Vector DB ──────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: codewizard-qdrant
+    ports:
+      - "6334:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - codewizard-net
+    restart: unless-stopped
+
+  # ─── Neo4j Graph DB ────────────────────────────────────────────
+  neo4j:
+    image: neo4j:5-community
+    container_name: codewizard-neo4j
+    ports:
+      - "7475:7474"
+      - "7688:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/codewizard123
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_memory_heap_initial__size=256m
+      - NEO4J_dbms_memory_heap_max__size=512m
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - codewizard-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ─── Sandbox (isolated execution) ──────────────────────────────
+  sandbox:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: codewizard-sandbox
+    env_file:
+      - .env
+    environment:
+      - SANDBOX_MODE=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - codewizard-net
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  qdrant_data:
+  neo4j_data:
+  neo4j_logs:
+  sqlite_data:
+
+networks:
+  codewizard-net:
+    driver: bridge
